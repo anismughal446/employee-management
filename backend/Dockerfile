@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY prisma ./prisma
+RUN npx prisma generate
+
+COPY . .
+RUN chmod +x entrypoint.sh
+
+EXPOSE 5000
+
+ENTRYPOINT ["./entrypoint.sh"]

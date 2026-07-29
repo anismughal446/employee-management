@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: anismughal446/employee-backend:v1
+          image: anismughal446/employee-backend:v3
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           envFrom:

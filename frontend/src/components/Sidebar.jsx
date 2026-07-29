@@ -1,24 +1,43 @@
-const DEPARTMENTS = ["IT", "HR", "Finance", "Sales"];
+const departments = [
+  "Engineering",
+  "Sales",
+  "HR",
+  "Finance",
+  "Marketing",
+  "IT",
+  "DevOps",
+  "Systems",
+  "AI/ML",
+];
 
 function Sidebar({ department, setDepartment }) {
+  const linkStyle = (isActive) => ({
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "10px 12px",
+    marginBottom: "6px",
+    background: isActive ? "#334155" : "transparent",
+    color: isActive ? "#fff" : "#cbd5e1",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "14px",
+  });
+
   return (
     <div className="sidebar">
-      <h2>Employee System</h2>
-
-      <button
-        className={department === "" ? "active" : ""}
-        onClick={() => setDepartment("")}
-      >
+      <h2>Employee Mgmt</h2>
+      <button style={linkStyle(department === "")} onClick={() => setDepartment("")}>
         All Employees
       </button>
-
-      {DEPARTMENTS.map((dep) => (
+      {departments.map((dept) => (
         <button
-          key={dep}
-          className={department === dep ? "active" : ""}
-          onClick={() => setDepartment(dep)}
+          key={dept}
+          style={linkStyle(department === dept)}
+          onClick={() => setDepartment(dept)}
         >
-          {dep}
+          {dept}
         </button>
       ))}
     </div>

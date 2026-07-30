@@ -8,13 +8,13 @@ Anyone can view the employee directory; only authenticated users can add, update
 
 ## Features
 
-- 📋 View, add, update, and delete employee records
-- 🏢 Filter employees by department (Engineering, Sales, HR, Finance, Marketing, IT, DevOps, Systems, AI/ML)
-- 🕒 Automatic creation date/time tracking for every employee record
-- 🔐 JWT-based authentication with named user accounts
-- 👀 Public read access — anyone can browse the employee list
-- ✍️ Protected write access — only logged-in users can add/update/delete
-- 📊 Live Grafana monitoring dashboard (CPU, memory, restarts) for all services
+- View, add, update, and delete employee records
+- Filter employees by department (Engineering, Sales, HR, Finance, Marketing, IT, DevOps, Systems, AI/ML)
+- Automatic creation date/time tracking for every employee record
+- JWT-based authentication with named user accounts
+- Public read access - anyone can browse the employee list
+- Protected write access - only logged-in users can add/update/delete
+- Live Grafana monitoring dashboard (CPU, memory, restarts) for all services
 
 ---
 
@@ -35,20 +35,62 @@ Anyone can view the employee directory; only authenticated users can add, update
 
 ## Project Structure
 
-tree
-Deployed across a 3-node Kubernetes cluster:
+    employee-management/
+    |-- frontend/
+    |   |-- src/
+    |   |   |-- api/employeeApi.js       (Axios client + JWT interceptor)
+    |   |   |-- components/Sidebar.jsx   (Department navigation)
+    |   |   |-- pages/Employees.jsx      (Main employee table + forms)
+    |   |   |-- pages/Login.jsx          (Login page)
+    |   |   `-- App.jsx
+    |   |-- Dockerfile
+    |   `-- nginx.conf
+    |-- backend/
+    |   |-- src/
+    |   |   |-- routes/employeeRoutes.js (Employee CRUD - mixed public/protected)
+    |   |   |-- routes/authRoutes.js     (Login endpoint)
+    |   |   |-- authMiddleware.js        (JWT verification middleware)
+    |   |   `-- server.js
+    |   |-- prisma/
+    |   |   |-- schema.prisma            (Employee + User models)
+    |   |   `-- seed.js                  (Seeds initial user accounts)
+    |   |-- entrypoint.sh                (Runs DB sync + starts server)
+    |   `-- Dockerfile
+    |-- kubernetes/
+    |   |-- frontend.yaml
+    |   |-- backend.yaml
+    |   |-- postgres.yaml
+    |   |-- ingress.yaml
+    |   `-- hpa.yaml
+    `-- README.md
+
+---
+
+## Architecture
+
+    Internet
+       |
+    Ingress (nginx) - single entry point
+       |
+       |-- /     -> frontend-service -> Frontend Pods (React)
+       `-- /api  -> backend-service  -> Backend Pods (Express)
+                                            |
+                                     postgres-service -> PostgreSQL
+
+Deployed across a 3-node Kubernetes cluster: one control-plane node and two worker nodes.
+
 ---
 
 ## API Endpoints
 
 | Method | Endpoint | Auth Required | Description |
 |---|---|---|---|
-| POST | `/api/auth/login` | No | Log in, returns JWT |
-| GET | `/api/employees` | No | List all employees |
-| GET | `/api/employees/:id` | No | Get one employee |
-| POST | `/api/employees` | **Yes** | Create employee |
-| PUT | `/api/employees/:id` | **Yes** | Update employee |
-| DELETE | `/api/employees/:id` | **Yes** | Delete employee |
+| POST | /api/auth/login | No | Log in, returns JWT |
+| GET | /api/employees | No | List all employees |
+| GET | /api/employees/:id | No | Get one employee |
+| POST | /api/employees | Yes | Create employee |
+| PUT | /api/employees/:id | Yes | Update employee |
+| DELETE | /api/employees/:id | Yes | Delete employee |
 
 Protected endpoints require an `Authorization: Bearer <token>` header, obtained from `/api/auth/login`.
 
@@ -57,66 +99,63 @@ Protected endpoints require an `Authorization: Bearer <token>` header, obtained 
 ## Environment Variables
 
 Backend (`backend-secret` in Kubernetes, or `.env` locally):
+
+    DATABASE_URL=postgresql://user:password@host:5432/employee_db
+    JWT_SECRET=random-secret-string
+
 ---
 
 ## Local Development
 
-**Backend:**
-```bash
-cd backend
-npm install
-npx prisma generate
-npx prisma db push
-node prisma/seed.js
-npm run dev
-```
+Backend:
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
+    cd backend
+    npm install
+    npx prisma generate
+    npx prisma db push
+    node prisma/seed.js
+    npm run dev
+Frontend:
+
+    cd frontend
+    npm install
+    npm run dev
 
 ---
 
 ## Deployment (Kubernetes)
 
-```bash
-kubectl apply -f kubernetes/
-```
+    kubectl apply -f kubernetes/
 
 Building and deploying updated images (local registry-free workflow used in this project):
 
-```bash
-# Backend
-docker build -t <registry-or-local>/employee-backend:<tag> ./backend
-kubectl set image deployment/backend backend=<registry-or-local>/employee-backend:<tag> -n employee-system
+    # Backend
+    docker build -t <registry-or-local>/employee-backend:<tag> ./backend
+    kubectl set image deployment/backend backend=<registry-or-local>/employee-backend:<tag> -n employee-system
 
-# Frontend
-docker build -t <registry-or-local>/employee-frontend:<tag> ./frontend
-kubectl set image deployment/frontend frontend=<registry-or-local>/employee-frontend:<tag> -n employee-system
-```
+    # Frontend
+    docker build -t <registry-or-local>/employee-frontend:<tag> ./frontend
+    kubectl set image deployment/frontend frontend=<registry-or-local>/employee-frontend:<tag> -n employee-system
 
 ---
 
 ## Default Seeded Users
 
-Set in `backend/prisma/seed.js` — **change these before deploying to production**:
+Set in `backend/prisma/seed.js` - change these before deploying to production:
 
 | Username | Notes |
 |---|---|
-| `admin` | Full access |
-| `anis` | Full access |
-| `inara` | Full access |
+| admin | Full access |
+| anis | Full access |
+| inara | Full access |
 
-> ⚠️ Passwords should be moved to environment variables rather than hardcoded in `seed.js` before any public/production use.
+Passwords should be moved to environment variables rather than hardcoded in seed.js before any public/production use.
 
 ---
 
 ## Monitoring
 
-A Grafana dashboard (`employee-system-dashboard`) tracks CPU usage, memory usage, restart counts, and pod status for all services in the `employee-system` namespace. It auto-imports via the existing kube-prometheus-stack sidecar.
+A Grafana dashboard (employee-system-dashboard) tracks CPU usage, memory usage, restart counts, and pod status for all services in the employee-system namespace. It auto-imports via the existing kube-prometheus-stack sidecar.
 
 ---
 

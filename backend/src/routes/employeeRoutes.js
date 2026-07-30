@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const prisma = require("../prismaClient");
+const { requireAuth } = require("../authMiddleware");
 
 router.get("/", async (req, res) => {
   try {
@@ -29,7 +30,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
   try {
     const { name, email, position, department, salary } = req.body;
 
@@ -58,7 +59,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { name, email, position, department, salary } = req.body;
 
@@ -82,7 +83,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAuth, async (req, res) => {
   try {
     await prisma.employee.delete({
       where: { id: parseInt(req.params.id, 10) },

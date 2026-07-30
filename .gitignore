@@ -1,0 +1,5 @@
+
+# Local image exports (build artifacts, not source)
+*.tar
+node_modules/
+dist/

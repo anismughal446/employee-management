@@ -3,7 +3,13 @@ import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from "..
 
 const emptyForm = { name: "", email: "", position: "", department: "", salary: "" };
 
-function Employees({ department }) {
+function formatDate(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleString();
+}
+
+function Employees({ department, isAuthenticated }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -13,6 +19,16 @@ function Employees({ department }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(emptyForm);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleAuthError = (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      window.location.reload();
+      return true;
+    }
+    return false;
+  };
 
   const loadEmployees = () => {
     setLoading(true);
@@ -45,6 +61,7 @@ function Employees({ department }) {
       setError("");
       loadEmployees();
     } catch (err) {
+      if (handleAuthError(err)) return;
       console.error("Error creating employee:", err);
       setError(err.response?.data?.error || "Failed to create employee.");
     } finally {
@@ -57,6 +74,7 @@ function Employees({ department }) {
       await deleteEmployee(id);
       loadEmployees();
     } catch (err) {
+      if (handleAuthError(err)) return;
       console.error("Error deleting employee:", err);
       setError("Failed to delete employee.");
     }
@@ -92,6 +110,7 @@ function Employees({ department }) {
       setError("");
       loadEmployees();
     } catch (err) {
+      if (handleAuthError(err)) return;
       console.error("Error updating employee:", err);
       setError(err.response?.data?.error || "Failed to update employee.");
     } finally {
@@ -109,42 +128,44 @@ function Employees({ department }) {
 
       {error && <div className="error-banner">{error}</div>}
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Add Employee</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <input
-              placeholder="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            <input
-              placeholder="Position"
-              value={form.position}
-              onChange={(e) => setForm({ ...form, position: e.target.value })}
-            />
-            <input
-              placeholder="Department"
-              value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-            />
-            <input
-              placeholder="Salary"
-              type="number"
-              value={form.salary}
-              onChange={(e) => setForm({ ...form, salary: e.target.value })}
-            />
-          </div>
-          <button className="primary" type="submit" disabled={submitting}>
-            {submitting ? "Adding..." : "Add Employee"}
-          </button>
-        </form>
-      </div>
+      {isAuthenticated && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Add Employee</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="form-row">
+              <input
+                placeholder="Name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <input
+                placeholder="Email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              <input
+                placeholder="Position"
+                value={form.position}
+                onChange={(e) => setForm({ ...form, position: e.target.value })}
+              />
+              <input
+                placeholder="Department"
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+              />
+              <input
+                placeholder="Salary"
+                type="number"
+                value={form.salary}
+                onChange={(e) => setForm({ ...form, salary: e.target.value })}
+              />
+            </div>
+            <button className="primary" type="submit" disabled={submitting}>
+              {submitting ? "Adding..." : "Add Employee"}
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="card">
         {loading ? (
@@ -159,13 +180,14 @@ function Employees({ department }) {
                 <th>Position</th>
                 <th>Department</th>
                 <th>Salary</th>
-                <th></th>
+                <th>Created</th>
+                {isAuthenticated && <th></th>}
               </tr>
             </thead>
             <tbody>
               {visibleEmployees.length > 0 ? (
                 visibleEmployees.map((emp) =>
-                  editingId === emp.id ? (
+                  isAuthenticated && editingId === emp.id ? (
                     <tr key={emp.id}>
                       <td>{emp.id}</td>
                       <td>
@@ -199,6 +221,7 @@ function Employees({ department }) {
                           onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
                         />
                       </td>
+                      <td>{formatDate(emp.createdAt)}</td>
                       <td>
                         <button
                           className="primary"
@@ -219,20 +242,23 @@ function Employees({ department }) {
                       <td>{emp.position}</td>
                       <td>{emp.department || "-"}</td>
                       <td>{emp.salary != null ? emp.salary : "-"}</td>
-                      <td>
-                        <button onClick={() => startEdit(emp)} style={{ marginRight: "6px" }}>
-                          Update
-                        </button>
-                        <button className="danger" onClick={() => handleDelete(emp.id)}>
-                          Delete
-                        </button>
-                      </td>
+                      <td>{formatDate(emp.createdAt)}</td>
+                      {isAuthenticated && (
+                        <td>
+                          <button onClick={() => startEdit(emp)} style={{ marginRight: "6px" }}>
+                            Update
+                          </button>
+                          <button className="danger" onClick={() => handleDelete(emp.id)}>
+                            Delete
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 )
               ) : (
                 <tr>
-                  <td colSpan="7">No employees found</td>
+                  <td colSpan={isAuthenticated ? 8 : 7}>No employees found</td>
                 </tr>
               )}
             </tbody>

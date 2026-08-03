@@ -3,11 +3,10 @@ const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
-// EDIT THESE to your real users before running
 const users = [
-  { username: "admin", password: "ChangeMe123!" },
-  { username: "anis", password: "ChangeMe456!" },
-  { username: "inara", password: "ChangeMe789!" },
+  { username: "admin", password: process.env.SEED_ADMIN_PASSWORD || "changeme" },
+  { username: "anis", password: process.env.SEED_ANIS_PASSWORD || "changeme" },
+  { username: "inara", password: process.env.SEED_INARA_PASSWORD || "changeme" },
 ];
 
 async function main() {

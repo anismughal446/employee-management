@@ -10,7 +10,7 @@ const departments = [
   "AI/ML",
 ];
 
-function Sidebar({ department, setDepartment }) {
+function Sidebar({ department, setDepartment, isAuthenticated, onAdminPanel }) {
   const linkStyle = (isActive) => ({
     display: "block",
     width: "100%",
@@ -40,6 +40,14 @@ function Sidebar({ department, setDepartment }) {
           {dept}
         </button>
       ))}
+      {isAuthenticated && (
+        <button
+          style={{ ...linkStyle(false), marginTop: "16px", borderTop: "1px solid #334155", paddingTop: "16px" }}
+          onClick={onAdminPanel}
+        >
+          Admin Panel
+        </button>
+      )}
     </div>
   );
 }

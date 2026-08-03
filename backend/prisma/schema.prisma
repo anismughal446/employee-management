@@ -15,6 +15,7 @@ model Employee {
   position   String
   department String?
   salary     Float?
+  status     String   @default("approved")
   createdAt  DateTime @default(now())
 }
 
@@ -22,5 +23,6 @@ model User {
   id        Int      @id @default(autoincrement())
   username  String   @unique
   password  String
+  status    String   @default("approved")
   createdAt DateTime @default(now())
 }

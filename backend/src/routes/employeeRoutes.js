@@ -2,12 +2,34 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../prismaClient");
 const { requireAuth } = require("../authMiddleware");
+const jwt = require("jsonwebtoken");
+const { JWT_SECRET } = require("../authMiddleware");
 
-router.get("/", async (req, res) => {
+function checkAuthOptional(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    try {
+      const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
+      req.user = decoded;
+    } catch (err) {
+      // invalid token - treat as unauthenticated, don't block
+    }
+  }
+  next();
+}
+
+router.get("/", checkAuthOptional, async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
+      where: { status: "approved" },
       orderBy: { id: "asc" },
     });
+
+    if (!req.user) {
+      const sanitized = employees.map(({ salary, ...rest }) => rest);
+      return res.json(sanitized);
+    }
+
     res.json(employees);
   } catch (err) {
     console.error("Error fetching employees:", err);
@@ -15,7 +37,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireAuth, async (req, res) => {
   try {
     const employee = await prisma.employee.findUnique({
       where: { id: parseInt(req.params.id, 10) },
@@ -27,6 +49,36 @@ router.get("/:id", async (req, res) => {
   } catch (err) {
     console.error("Error fetching employee:", err);
     res.status(500).json({ error: "Failed to fetch employee" });
+  }
+});
+
+router.post("/request", async (req, res) => {
+  try {
+    const { name, email, position, department } = req.body;
+
+    if (!name || !email || !position) {
+      return res
+        .status(400)
+        .json({ error: "name, email, and position are required" });
+    }
+
+    const employee = await prisma.employee.create({
+      data: {
+        name,
+        email,
+        position,
+        department: department || null,
+        salary: null,
+        status: "pending",
+      },
+    });
+    res.status(201).json({ message: "Request submitted. An admin will review it shortly.", employee });
+  } catch (err) {
+    if (err.code === "P2002") {
+      return res.status(409).json({ error: "An employee with this email already exists" });
+    }
+    console.error("Error submitting employee request:", err);
+    res.status(500).json({ error: "Failed to submit request" });
   }
 });
 
@@ -47,6 +99,7 @@ router.post("/", requireAuth, async (req, res) => {
         position,
         department: department || null,
         salary: salary !== undefined && salary !== "" ? parseFloat(salary) : null,
+        status: "approved",
       },
     });
     res.status(201).json(employee);
@@ -56,6 +109,22 @@ router.post("/", requireAuth, async (req, res) => {
     }
     console.error("Error creating employee:", err);
     res.status(500).json({ error: "Failed to create employee" });
+  }
+});
+
+router.patch("/:id/approve", requireAuth, async (req, res) => {
+  try {
+    const employee = await prisma.employee.update({
+      where: { id: parseInt(req.params.id, 10) },
+      data: { status: "approved" },
+    });
+    res.json(employee);
+  } catch (err) {
+    if (err.code === "P2025") {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+    console.error("Error approving employee:", err);
+    res.status(500).json({ error: "Failed to approve employee" });
   }
 });
 

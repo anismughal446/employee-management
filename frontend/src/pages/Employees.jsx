@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from "../api/employeeApi";
+import { getEmployees, createEmployee, requestEmployee, updateEmployee, deleteEmployee } from "../api/employeeApi";
 
 const emptyForm = { name: "", email: "", position: "", department: "", salary: "" };
 
@@ -13,6 +13,7 @@ function Employees({ department, isAuthenticated }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,24 +47,32 @@ function Employees({ department, isAuthenticated }) {
 
   useEffect(() => {
     loadEmployees();
-  }, []);
+  }, [isAuthenticated]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSuccess("");
     if (!form.name || !form.email || !form.position) {
       setError("Name, email, and position are required.");
       return;
     }
     setSubmitting(true);
     try {
-      await createEmployee(form);
-      setForm(emptyForm);
-      setError("");
-      loadEmployees();
+      if (isAuthenticated) {
+        await createEmployee(form);
+        setForm(emptyForm);
+        setError("");
+        loadEmployees();
+      } else {
+        const res = await requestEmployee(form);
+        setForm(emptyForm);
+        setError("");
+        setSuccess(res.data.message || "Request submitted for admin approval.");
+      }
     } catch (err) {
       if (handleAuthError(err)) return;
-      console.error("Error creating employee:", err);
-      setError(err.response?.data?.error || "Failed to create employee.");
+      console.error("Error submitting employee:", err);
+      setError(err.response?.data?.error || "Failed to submit.");
     } finally {
       setSubmitting(false);
     }
@@ -122,50 +131,64 @@ function Employees({ department, isAuthenticated }) {
     ? employees.filter((emp) => emp.department === department)
     : employees;
 
+  const columnCount = isAuthenticated ? 8 : 6;
+
   return (
     <div>
       <h1>{department ? `${department} Employees` : "All Employees"}</h1>
 
       {error && <div className="error-banner">{error}</div>}
+      {success && (
+        <div style={{ background: "#f0fdf4", color: "#15803d", padding: "10px 14px", borderRadius: "8px", marginBottom: "16px" }}>
+          {success}
+        </div>
+      )}
 
-      {isAuthenticated && (
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Add Employee</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <input
-                placeholder="Name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-              <input
-                placeholder="Email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-              <input
-                placeholder="Position"
-                value={form.position}
-                onChange={(e) => setForm({ ...form, position: e.target.value })}
-              />
-              <input
-                placeholder="Department"
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-              />
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>
+          {isAuthenticated ? "Add Employee" : "Request to Add Employee"}
+        </h3>
+        {!isAuthenticated && (
+          <p style={{ color: "#64748b", fontSize: "13px", marginTop: "-6px" }}>
+            Your submission will be reviewed by an admin before it appears in the directory.
+          </p>
+        )}
+        <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <input
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            <input
+              placeholder="Position"
+              value={form.position}
+              onChange={(e) => setForm({ ...form, position: e.target.value })}
+            />
+            <input
+              placeholder="Department"
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+            />
+            {isAuthenticated && (
               <input
                 placeholder="Salary"
                 type="number"
                 value={form.salary}
                 onChange={(e) => setForm({ ...form, salary: e.target.value })}
               />
-            </div>
-            <button className="primary" type="submit" disabled={submitting}>
-              {submitting ? "Adding..." : "Add Employee"}
-            </button>
-          </form>
-        </div>
-      )}
+            )}
+          </div>
+          <button className="primary" type="submit" disabled={submitting}>
+            {submitting ? "Submitting..." : isAuthenticated ? "Add Employee" : "Submit Request"}
+          </button>
+        </form>
+      </div>
 
       <div className="card">
         {loading ? (
@@ -179,7 +202,7 @@ function Employees({ department, isAuthenticated }) {
                 <th>Email</th>
                 <th>Position</th>
                 <th>Department</th>
-                <th>Salary</th>
+                {isAuthenticated && <th>Salary</th>}
                 <th>Created</th>
                 {isAuthenticated && <th></th>}
               </tr>
@@ -241,7 +264,7 @@ function Employees({ department, isAuthenticated }) {
                       <td>{emp.email}</td>
                       <td>{emp.position}</td>
                       <td>{emp.department || "-"}</td>
-                      <td>{emp.salary != null ? emp.salary : "-"}</td>
+                      {isAuthenticated && <td>{emp.salary != null ? emp.salary : "-"}</td>}
                       <td>{formatDate(emp.createdAt)}</td>
                       {isAuthenticated && (
                         <td>
@@ -258,7 +281,7 @@ function Employees({ department, isAuthenticated }) {
                 )
               ) : (
                 <tr>
-                  <td colSpan={isAuthenticated ? 8 : 7}>No employees found</td>
+                  <td colSpan={columnCount}>No employees found</td>
                 </tr>
               )}
             </tbody>
